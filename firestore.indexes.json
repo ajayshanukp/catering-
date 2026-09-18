@@ -1,0 +1,54 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "works",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "workDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "work_public",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "workDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "work_members",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "membershipStatus", "order": "ASCENDING" },
+        { "fieldPath": "joinedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "work_captains",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "captainId", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "work_payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "billerId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "audit_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "workId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

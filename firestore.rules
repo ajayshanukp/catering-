@@ -1,0 +1,197 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'active';
+    }
+
+    function isCaptain() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'captain' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'active';
+    }
+
+    function isBoy() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'boy' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'active';
+    }
+
+    function isUser(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isAssignedCaptain(workId) {
+      return isOwner() || (isCaptain() && (
+        (exists(/databases/$(database)/documents/works/$(workId)) &&
+         get(/databases/$(database)/documents/works/$(workId)).data.mainSiteCaptainId == request.auth.uid) ||
+        exists(/databases/$(database)/documents/work_captains/$(workId + '_' + request.auth.uid))
+      ));
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // users collection
+    match /users/{uid} {
+      // Owner can read all profiles; users can read own profile; Captains can read Boys assigned or in directory
+      allow read: if isOwner() || isUser(uid) || isCaptain();
+      // Only user can create initial shell on auth; Owner can manage any profile
+      allow create: if isAuthenticated() && (request.auth.uid == uid || isOwner());
+      // Users can update non-sensitive personal fields only
+      allow update: if isOwner() || (
+        isUser(uid) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'role', 'currentCategory', 'currentOfficialId', 'accountStatus', 
+          'approvedAt', 'approvedBy', 'deactivatedAt', 'deactivatedBy'
+        ])
+      );
+      allow delete: if false; // append-only / soft-deactivate
+    }
+
+    // applications collection
+    match /applications/{applicationId} {
+      allow read: if isOwner() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isOwner() || (
+        isAuthenticated() && resource.data.userId == request.auth.uid && resource.data.status == 'rejected'
+      );
+      allow delete: if false;
+    }
+
+    // user_id_history collection
+    match /user_id_history/{id} {
+      allow read: if isOwner() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow write: if isOwner();
+    }
+
+    // official_id_registry collection
+    match /official_id_registry/{normalizedId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+
+    // works collection (PRIVATE management document with quotas)
+    match /works/{workId} {
+      allow read: if isOwner() || isAssignedCaptain(workId);
+      allow create, update, delete: if isOwner() || isAssignedCaptain(workId);
+    }
+
+    // work_public collection (Boy-safe public projection - NO quota fields)
+    match /work_public/{workId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner() || isAssignedCaptain(workId);
+    }
+
+    // work_captains collection
+    match /work_captains/{relationshipId} {
+      allow read: if isOwner() || isCaptain();
+      allow write: if isOwner();
+    }
+
+    // work_members collection
+    match /work_members/{membershipId} {
+      allow read: if isOwner() || isCaptain() || (isBoy() && resource.data.userId == request.auth.uid);
+      allow write: if isOwner() || isCaptain() || (isBoy() && request.resource.data.userId == request.auth.uid);
+    }
+
+    // daily_assignment_locks collection
+    match /daily_assignment_locks/{lockId} {
+      allow read: if isAuthenticated() && (isOwner() || lockId.matches('^' + request.auth.uid + '_.*'));
+      allow create, delete: if isAuthenticated();
+      allow update: if isOwner();
+    }
+
+    // work_attendance collection
+    match /work_attendance/{attendanceId} {
+      allow read: if isOwner() || isCaptain() || (isBoy() && resource.data.boyId == request.auth.uid);
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // work_wages collection (PRIVATE management draft wages)
+    match /work_wages/{wageId} {
+      allow read: if isOwner() || isCaptain();
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // wage_revisions collection
+    match /wage_revisions/{revisionId} {
+      allow read: if isOwner() || isCaptain();
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // user_wage_views collection (Boy-readable published projection)
+    match /user_wage_views/{uid}/items/{workId} {
+      allow read: if isOwner() || isUser(uid);
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // work_billers collection
+    match /work_billers/{billerId} {
+      allow read: if isOwner() || isCaptain() || (isBoy() && resource.data.boyId == request.auth.uid);
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // biller_assignment_events collection
+    match /biller_assignment_events/{eventId} {
+      allow read: if isOwner() || isCaptain();
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // work_payments collection
+    match /work_payments/{paymentId} {
+      allow read: if isOwner() || isCaptain() || (isBoy() && resource.data.boyId == request.auth.uid);
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // payment_events collection
+    match /payment_events/{eventId} {
+      allow read: if isOwner() || isCaptain() || (isBoy() && resource.data.boyId == request.auth.uid);
+      allow write: if isOwner() || isCaptain();
+    }
+
+    // captain_wages collection (Separate manual Captain wage/payment records)
+    match /captain_wages/{recordId} {
+      allow read: if isOwner() || (isCaptain() && resource.data.captainId == request.auth.uid);
+      allow write: if isOwner();
+    }
+
+    // notifications collection
+    match /notifications/{uid}/items/{notificationId} {
+      allow read: if isUser(uid) || isOwner();
+      allow write: if isAuthenticated();
+    }
+
+    // audit_logs collection (Append-only global audit trail)
+    match /audit_logs/{eventId} {
+      allow read: if isOwner();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // immutable
+    }
+
+    // wage_settings collection
+    match /wage_settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+
+    // system_settings collection
+    match /system_settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+  }
+}
