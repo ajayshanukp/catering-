@@ -73,6 +73,9 @@ export const PhoneLogin: React.FC = () => {
               </p>
             </div>
 
+            {/* Firebase reCAPTCHA container for Phone Auth */}
+            <div id="recaptcha-container" className="my-1 flex justify-center"></div>
+
             <Button
               type="submit"
               variant="primary"

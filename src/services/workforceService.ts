@@ -23,6 +23,8 @@ import {
 } from '../types';
 import { generateOfficialBoyId, updateBoyIdCategory, generateOfficialCaptainId } from '../lib/idGenerator';
 import { AppError } from '../lib/errorCodes';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // Local storage keys for persistent offline/development data fallback
 const STORAGE_PREFIX = 'cwm_data_';
@@ -1365,144 +1367,72 @@ class WorkforceService {
     this.setItem('audit_logs', all);
   }
 
-  // Seeding initial production-like test accounts if empty
-  public seedInitialData(): void {
+  // Clear all local cache / state
+  public clearAllData(): void {
+    const keys = [
+      'users', 'works', 'work_public', 'work_members', 'work_captains',
+      'work_billers', 'applications', 'attendance', 'payments', 'captain_wages',
+      'notifications', 'audit_logs', 'user_id_history', 'offline_queue', 'wage_settings', 'system_settings'
+    ];
+    keys.forEach(k => {
+      try {
+        localStorage.removeItem(STORAGE_PREFIX + k);
+      } catch {}
+    });
+    try {
+      localStorage.removeItem('cwm_current_auth_uid');
+      localStorage.removeItem('cwm_demo_seeded');
+    } catch {}
+    this.notify();
+  }
+
+  // Ensure any old demo users from previous runs are permanently purged
+  public purgeLegacyDemoData(): void {
     const users = this.getUsers();
-    if (users.length > 0) return;
+    if (users.some(u => u.uid === 'owner_main' || u.uid === 'boy_suresh' || u.uid.startsWith('cpt_') || u.uid.startsWith('boy_'))) {
+      this.clearAllData();
+      console.info('Legacy demo data purged successfully.');
+    }
+  }
 
-    const owner: UserProfile = {
-      uid: 'owner_main',
-      role: 'owner',
-      fullName: 'Vikram Mehta (Owner)',
-      mobileNumber: '+919876543210',
-      DOB: '1985-05-12',
-      exactPlace: 'Koramangala 4th Block',
-      postOffice: 'Koramangala PO',
-      district: 'Bengaluru Urban',
-      bloodGroup: 'O+',
-      currentOfficialId: 'OWNER-001',
-      accountStatus: 'active',
-      approvedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  // Real-time Cloud Firestore synchronization
+  private firestoreInitialized = false;
+  public initFirestoreSync(): void {
+    if (this.firestoreInitialized || !isFirebaseConfigured()) return;
+    this.firestoreInitialized = true;
 
-    const captain1: UserProfile = {
-      uid: 'cpt_rajesh',
-      role: 'captain',
-      fullName: 'Rajesh Kumar (Captain)',
-      mobileNumber: '+919876543211',
-      DOB: '1992-08-20',
-      exactPlace: 'Indiranagar 100ft Rd',
-      postOffice: 'Indiranagar PO',
-      district: 'Bengaluru Urban',
-      bloodGroup: 'B+',
-      currentOfficialId: 'CPT-101',
-      accountStatus: 'active',
-      approvedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      const collections = [
+        'users',
+        'works',
+        'work_public',
+        'work_members',
+        'work_captains',
+        'work_billers',
+        'applications',
+        'attendance',
+        'payments',
+        'captain_wages',
+        'notifications',
+        'audit_logs'
+      ];
 
-    const captain2: UserProfile = {
-      uid: 'cpt_anand',
-      role: 'captain',
-      fullName: 'Anand Gowda (Captain)',
-      mobileNumber: '+919876543212',
-      DOB: '1994-03-15',
-      exactPlace: 'Whitefield',
-      postOffice: 'Whitefield PO',
-      district: 'Bengaluru Urban',
-      bloodGroup: 'A+',
-      currentOfficialId: 'CPT-102',
-      accountStatus: 'active',
-      approvedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const boy1: UserProfile = {
-      uid: 'boy_suresh',
-      role: 'boy',
-      fullName: 'Suresh Patil',
-      mobileNumber: '+919876543220',
-      DOB: '2002-11-04',
-      exactPlace: 'BTM 2nd Stage',
-      postOffice: 'BTM PO',
-      district: 'Bengaluru Urban',
-      bloodGroup: 'AB+',
-      currentCategory: 'A',
-      currentOfficialId: 'BOY-1001-A',
-      accountStatus: 'active',
-      approvedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const boy2: UserProfile = {
-      uid: 'boy_kiran',
-      role: 'boy',
-      fullName: 'Kiran Kumar',
-      mobileNumber: '+919876543221',
-      DOB: '2003-01-18',
-      exactPlace: 'HSR Layout Sector 1',
-      postOffice: 'HSR PO',
-      district: 'Bengaluru Urban',
-      bloodGroup: 'O+',
-      currentCategory: 'B',
-      currentOfficialId: 'BOY-1002-B',
-      accountStatus: 'active',
-      approvedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const boy3: UserProfile = {
-      uid: 'boy_manoj',
-      role: 'boy',
-      fullName: 'Manoj Sharma',
-      mobileNumber: '+919876543222',
-      DOB: '2004-06-25',
-      exactPlace: 'Jayanagar 4th T Block',
-      postOffice: 'Jayanagar PO',
-      district: 'Bengaluru Urban',
-      bloodGroup: 'B-',
-      currentCategory: 'C',
-      currentOfficialId: 'BOY-1003-C',
-      accountStatus: 'active',
-      approvedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const initialUsers = [owner, captain1, captain2, boy1, boy2, boy3];
-    this.setItem('users', initialUsers);
-
-    // Initial Work Sample
-    const work1 = this.createWork({
-      name: 'Grand Wedding Reception — Palace Grounds',
-      workDate: '2026-09-25',
-      reportingTime: '16:00',
-      sitePlace: 'Palace Grounds, Gate 4, Princess Shrine',
-      description: 'Formal silver-service catering for 850 guests. Traditional South Indian & Continental counters.',
-      instructions: 'White shirt, black trousers, black leather shoes, clean shave. Reporting strictly at 4 PM.',
-      pax: 850,
-      status: 'available',
-      mainSiteCaptainId: captain1.uid,
-      mainSiteCaptainName: captain1.fullName,
-      mainSiteCaptainOfficialId: captain1.currentOfficialId,
-      aRequired: 4,
-      bRequired: 6,
-      cRequired: 10,
-    }, owner, true);
-
-    // Add initial membership
-    this.takeWork(work1.id, boy1);
-    this.takeWork(work1.id, boy2);
-
-    console.info('Initial workforce data seeded successfully.');
+      collections.forEach((colName) => {
+        onSnapshot(collection(db, colName), (snapshot) => {
+          if (!snapshot.empty) {
+            const docs = snapshot.docs.map((d) => d.data());
+            this.setItem(colName, docs);
+          }
+        }, (err) => {
+          console.warn(`Firestore sync [${colName}]:`, err.message);
+        });
+      });
+    } catch (e) {
+      console.warn('Firestore initialization note:', e);
+    }
   }
 }
 
 export const workforceService = new WorkforceService();
-workforceService.seedInitialData();
+workforceService.purgeLegacyDemoData();
+workforceService.initFirestoreSync();

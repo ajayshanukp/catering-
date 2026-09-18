@@ -33,4 +33,7 @@ if (useEmulator && typeof window !== 'undefined') {
   } catch (e) {
     console.warn('Firebase emulator connection note:', e);
   }
-}
+}export const isFirebaseConfigured = (): boolean => {
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  return !!apiKey && apiKey !== 'demo-api-key' && apiKey !== 'your-api-key';
+};

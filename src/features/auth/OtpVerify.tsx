@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export const OtpVerify: React.FC = () => {
-  const { pendingPhone, verifyOtp, setPendingPhone } = useAuth();
+  const { pendingPhone, verifyOtp, loginWithPhone, setPendingPhone } = useAuth();
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -64,10 +64,15 @@ export const OtpVerify: React.FC = () => {
     navigate('/login');
   };
 
-  const handleResend = () => {
-    if (cooldown === 0) {
-      setCooldown(30);
-      setError('');
+  const handleResend = async () => {
+    if (cooldown === 0 && pendingPhone) {
+      try {
+        setError('');
+        await loginWithPhone(pendingPhone);
+        setCooldown(60);
+      } catch (err: any) {
+        setError(err.message || 'Failed to resend code');
+      }
     }
   };
 
@@ -100,14 +105,11 @@ export const OtpVerify: React.FC = () => {
                 maxLength={6}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
+                placeholder="------"
                 className="w-full text-center tracking-[0.4em] font-mono text-2xl font-bold py-3 bg-slate-50 border border-border rounded-control focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[52px]"
                 autoFocus
               />
               {error && <p className="mt-2 text-xs text-danger font-medium text-center">{error}</p>}
-              <p className="text-[11px] text-slate-400 text-center mt-2">
-                Tip: Enter any 6-digit code (e.g. 123456) in development
-              </p>
             </div>
 
             <Button
