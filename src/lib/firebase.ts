@@ -4,12 +4,12 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "catering-workforce-app.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "catering-workforce-app",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "catering-workforce-app.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789012",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789012:web:abcdef123456",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCqK6_e_Xpr4Ud5uiJz0QTy8eKvTsz106o",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "catering-workforce.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "catering-workforce",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "catering-workforce.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "964557176145",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:964557176145:web:d7575ef215ac8964de6770",
 };
 
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
