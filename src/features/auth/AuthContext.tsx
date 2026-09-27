@@ -47,6 +47,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const RECAPTCHA_CONTAINER_ID = 'recaptcha-container';
+
+  const ensureRecaptchaContainer = (): void => {
+    if (typeof document === 'undefined') return;
+
+    let container = document.getElementById(RECAPTCHA_CONTAINER_ID);
+    if (!container) {
+      container = document.createElement('div');
+      container.id = RECAPTCHA_CONTAINER_ID;
+      container.style.display = 'none';
+      document.body.appendChild(container);
+    }
+  };
 
   const loadProfile = async (uid: string | null) => {
     if (!uid) {
@@ -126,9 +139,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isFirebaseConfigured()) {
       try {
+        ensureRecaptchaContainer();
+
         // Prepare invisible reCAPTCHA verifier
         if (!window.recaptchaVerifier) {
-          window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          window.recaptchaVerifier = new RecaptchaVerifier(auth, RECAPTCHA_CONTAINER_ID, {
             size: 'invisible',
             callback: () => {
               // reCAPTCHA solved
@@ -170,7 +185,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 1. If real Firebase Phone Auth confirmation is active
     const activeConfirmation = confirmationResult || window.confirmationResult;
-    if (isFirebaseConfigured() && activeConfirmation) {
+    if (isFirebaseConfigured()) {
+      if (!activeConfirmation) {
+        throw new Error('Verification session expired. Please request a new OTP.');
+      }
+
       try {
         const credential = await activeConfirmation.confirm(code);
         const fbUser = credential.user;
