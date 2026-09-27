@@ -31,6 +31,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ profile, unreadC
   if (!profile) return null;
 
   const role = profile.role;
+  const displayName = (profile.fullName || '').trim();
+  const displayId = (profile.currentOfficialId || '').trim();
+  const displayMobile = (profile.mobileNumber || '').trim();
+  const avatarLabel = displayName || displayId || 'User';
+  const avatarInitial = avatarLabel.charAt(0).toUpperCase();
 
   let navSections: {
     title?: string;
@@ -146,7 +151,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ profile, unreadC
           <span className="text-xs font-semibold text-text-strong uppercase tracking-wider">{role}</span>
         </div>
         <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-white border border-border text-slate-700">
-          {profile.currentOfficialId || profile.fullName}
+          {displayId || displayName || 'N/A'}
         </span>
       </div>
 
@@ -192,11 +197,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({ profile, unreadC
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-700 shrink-0">
-              {profile.fullName.charAt(0).toUpperCase()}
+              {avatarInitial}
             </div>
             <div className="truncate">
-              <p className="text-xs font-bold text-text-strong truncate">{profile.fullName}</p>
-              <p className="text-[11px] text-text-muted truncate">{profile.mobileNumber}</p>
+              <p className="text-xs font-bold text-text-strong truncate">{displayName || 'Unnamed User'}</p>
+              <p className="text-[11px] text-text-muted truncate">{displayMobile || 'No mobile number'}</p>
             </div>
           </div>
           <button
